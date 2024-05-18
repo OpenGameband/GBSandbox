@@ -33,7 +33,7 @@ type Animation struct {
 }
 
 type Frame struct {
-	Data [20][7]bool // the rows/cols of the gameband screen
+	Data []byte // the rows/cols of the gameband screen
 }
 
 type GBData struct {
