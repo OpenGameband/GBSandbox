@@ -167,7 +167,7 @@ func (g *Gameband) WritePayload(command uint16, data []byte, offset uint8, dataS
 func (g *Gameband) SetTime() error {
 	encoded := make([]byte, 9)
 	encoded[1] = 2
-	PackTime(encoded, 5, uint32(time.Now().UTC().Unix()))
+	PackTime(encoded, 5, uint32(time.Now().Unix()))
 	return g.BlindWrite(encoded, 3)
 }
 

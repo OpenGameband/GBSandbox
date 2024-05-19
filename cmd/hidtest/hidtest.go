@@ -12,9 +12,9 @@ import (
 
 var data = comms.GBData{
 	Header: comms.GamebandHeader{
-		Timezone:                4,
+		Timezone:                5,
 		AltTimezone:             0,
-		TzChange:                1698541200,
+		TzChange:                0,
 		Orientation:             1,
 		TransitionFrameDuration: 47,
 		ScreenCount:             3,
@@ -90,7 +90,17 @@ func main() {
 		panic(err)
 	}
 
-	if os.Args[1] != "" {
+	z, offset := time.Now().Zone()
+	data.Header.Timezone = uint8(offset/60/60) * 4
+	fmt.Printf("Setting Gameband Timezone: %s (%d)\n", z, offset/60/60)
+	if _, end := time.Now().ZoneBounds(); end.After(time.Now()) {
+		data.Header.TzChange = uint32(end.Unix())
+		z, offset := end.Zone()
+		fmt.Printf("Setting Gameband Next Timezone: %s (%d)\n", z, offset)
+		data.Header.AltTimezone = uint8(offset/60/60) * 4
+	}
+
+	if len(os.Args) > 1 && os.Args[1] != "" {
 		imageFile, err := os.Open(os.Args[1])
 		if err != nil {
 			panic(err)
