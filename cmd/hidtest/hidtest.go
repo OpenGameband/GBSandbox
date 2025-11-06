@@ -2,9 +2,9 @@ package main
 
 import (
 	"GBSandbox/pkg/comms"
+	"GBSandbox/pkg/imgutil"
 	"fmt"
 	"image"
-	"image/color"
 	_ "image/gif"
 	"os"
 	"time"
@@ -57,27 +57,6 @@ var data = comms.GBData{
 	},
 }
 
-func isWhite(c color.Color) bool {
-	r, g, b, _ := c.RGBA()
-	return r > 0 || g > 0 || b > 0
-}
-
-func GetTwoColumns(img image.Image, column int) uint16 {
-	var columns uint16
-
-	for i := 0; i < 7; i++ {
-		if isWhite(img.At(column, i)) {
-			columns = columns | 1<<i
-		}
-
-		if isWhite(img.At(column+1, i)) {
-			columns = columns | 1<<(i+7)
-		}
-	}
-
-	return columns
-}
-
 func main() {
 	gb := new(comms.Gameband)
 	gb, err := comms.OpenHid()
@@ -91,13 +70,13 @@ func main() {
 	}
 
 	z, offset := time.Now().Zone()
-	data.Header.Timezone = uint8(offset/60/60) * 4
+	data.Header.Timezone = uint8((offset / 60 / 60) * 4)
 	fmt.Printf("Setting Gameband Timezone: %s (%d)\n", z, offset/60/60)
 	if _, end := time.Now().ZoneBounds(); end.After(time.Now()) {
 		data.Header.TzChange = uint32(end.Unix())
 		z, offset := end.Zone()
 		fmt.Printf("Setting Gameband Next Timezone: %s (%d)\n", z, offset)
-		data.Header.AltTimezone = uint8(offset/60/60) * 4
+		data.Header.AltTimezone = uint8((offset / 60 / 60) * 4)
 	}
 
 	if len(os.Args) > 1 && os.Args[1] != "" {
@@ -114,8 +93,8 @@ func main() {
 		frame := comms.Frame{}
 		frame.Data = make([]byte, 20)
 		for i := 0; i < 20; i += 2 {
-			frame.Data[i] = byte(GetTwoColumns(img, i))
-			frame.Data[i+1] = byte(GetTwoColumns(img, i) >> 8)
+			frame.Data[i] = byte(imgutil.GetTwoColumns(img, i))
+			frame.Data[i+1] = byte(imgutil.GetTwoColumns(img, i) >> 8)
 		}
 		data.Animations[2].Frames = []comms.Frame{frame}
 	}

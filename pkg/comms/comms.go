@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/sstallion/go-hid"
 	"math"
+	"strconv"
 	"time"
 )
 
@@ -51,18 +52,18 @@ func (g *Gameband) Write(data []byte, bufSize uint, check uint8) ([]byte, bool, 
 func (g *Gameband) WriteAtOffset(commandCode uint, data []byte, offset, dataSize uint) error {
 	if uint(len(data)) < offset+dataSize {
 		return errors.New("error. Each data write must be of dataSize words")
-	} else {
-		buf := make([]byte, 37)
-		buf[1] = 6
-		buf[3] = byte(commandCode)
-		buf[4] = byte(commandCode >> 8)
-
-		for i := uint(0); i < dataSize; i++ {
-			buf[i+5] = data[offset+i]
-		}
-
-		return g.BlindWrite(buf, 7)
 	}
+
+	buf := make([]byte, 37)
+	buf[1] = 6
+	buf[3] = byte(commandCode)
+	buf[4] = byte(commandCode >> 8)
+
+	for i := uint(0); i < dataSize; i++ {
+		buf[i+5] = data[offset+i]
+	}
+
+	return g.BlindWrite(buf, 7)
 }
 
 func (g *Gameband) ReadGameband() ([]byte, error) {
@@ -104,19 +105,32 @@ func (g *Gameband) WriteData(data []byte) error {
 		return err
 	}
 
-	err := g.SetDataLength(6144, uint16(128))
+	err := g.SetDataLength(6144, uint16(align))
 	if err != nil {
 		return err
 	}
 
+	failCount := 0
 	for i := 0; i < len(data); i += 32 {
+	retry:
 		err := g.WriteAtOffset(6144+uint(i/2), data, uint(i), 32)
 		if err != nil {
 			return err
 		}
 
-		//resp, err := g.ReadChunk(uint16(6144 + (i)))
-		//TODO: Verify data as it's written
+		resp, err := g.ReadChunk(uint16(6144 + (i / 2)))
+		if err != nil {
+			return err
+		}
+		for i2, b := range resp {
+			if data[i+i2] != b {
+				failCount++
+				if failCount > 10 {
+					return errors.New("can't write to block " + strconv.Itoa(i/32))
+				}
+				goto retry
+			}
+		}
 	}
 
 	return g.Commit() // Not sure what this does
